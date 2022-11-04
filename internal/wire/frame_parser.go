@@ -75,7 +75,7 @@ func (p *frameParser) parseFrame(r *bytes.Reader, typeByte byte, encLevel protoc
 				ackDelayExponent = protocol.DefaultAckDelayExponent
 			}
 			frame, err = parseAckFrame(r, ackDelayExponent, v)
-		case 0x4:
+		case 0x4, 0x72: // TODO: only parse RELIABLE_RESET_STREAM frames when negotiated
 			frame, err = parseResetStreamFrame(r, v)
 		case 0x5:
 			frame, err = parseStopSendingFrame(r, v)
