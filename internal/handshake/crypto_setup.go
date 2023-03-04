@@ -610,6 +610,12 @@ func (h *cryptoSetup) Get1RTTOpener() (ShortHeaderOpener, error) {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
+	// TODO: crypto/tls currently gives us the 1-RTT read key prematurely.
+	// Hold it back until the handshake is completed.
+	if h.handshakeCompleteTime.IsZero() {
+		return nil, ErrKeysNotYetAvailable
+	}
+
 	if h.zeroRTTOpener != nil && time.Since(h.handshakeCompleteTime) > 3*h.rttStats.PTO(true) {
 		h.zeroRTTOpener = nil
 		h.logger.Debugf("Dropping 0-RTT keys.")
