@@ -72,45 +72,17 @@ func main() {
 	cChunkChan, cInitialStream, cHandshakeStream := initStreams()
 	var client, server handshake.CryptoSetup
 	runner := newRunner(&client, &server)
-	client, _ = handshake.NewCryptoSetupClient(
-		cInitialStream,
-		cHandshakeStream,
-		protocol.ConnectionID{},
-		nil,
-		nil,
-		&wire.TransportParameters{ActiveConnectionIDLimit: 2},
-		runner,
-		&tls.Config{
-			ServerName:         "localhost",
-			NextProtos:         []string{alpn},
-			RootCAs:            testdata.GetRootCA(),
-			ClientSessionCache: tls.NewLRUClientSessionCache(1),
-		},
-		false,
-		utils.NewRTTStats(),
-		nil,
-		utils.DefaultLogger.WithPrefix("client"),
-		protocol.VersionTLS,
-	)
+	client, _ = handshake.NewCryptoSetupClient(cInitialStream, cHandshakeStream, nil, protocol.ConnectionID{}, &wire.TransportParameters{ActiveConnectionIDLimit: 2}, runner, &tls.Config{
+		ServerName:         "localhost",
+		NextProtos:         []string{alpn},
+		RootCAs:            testdata.GetRootCA(),
+		ClientSessionCache: tls.NewLRUClientSessionCache(1),
+	}, false, utils.NewRTTStats(), nil, utils.DefaultLogger.WithPrefix("client"), protocol.VersionTLS)
 
 	sChunkChan, sInitialStream, sHandshakeStream := initStreams()
 	config := testdata.GetTLSConfig()
 	config.NextProtos = []string{alpn}
-	server = handshake.NewCryptoSetupServer(
-		sInitialStream,
-		sHandshakeStream,
-		protocol.ConnectionID{},
-		nil,
-		nil,
-		&wire.TransportParameters{ActiveConnectionIDLimit: 2},
-		runner,
-		config,
-		nil,
-		utils.NewRTTStats(),
-		nil,
-		utils.DefaultLogger.WithPrefix("server"),
-		protocol.VersionTLS,
-	)
+	server = handshake.NewCryptoSetupServer(sInitialStream, sHandshakeStream, nil, protocol.ConnectionID{}, &wire.TransportParameters{ActiveConnectionIDLimit: 2}, runner, config, nil, utils.NewRTTStats(), nil, utils.DefaultLogger.WithPrefix("server"), protocol.VersionTLS)
 
 	serverHandshakeCompleted := make(chan struct{})
 	go func() {

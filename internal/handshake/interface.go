@@ -1,12 +1,12 @@
 package handshake
 
 import (
+	"crypto/tls"
 	"errors"
 	"io"
 	"time"
 
 	"github.com/quic-go/quic-go/internal/protocol"
-	"github.com/quic-go/quic-go/internal/qtls"
 	"github.com/quic-go/quic-go/internal/wire"
 )
 
@@ -21,9 +21,6 @@ var (
 	// ErrDecryptionFailed is returned when the AEAD fails to open the packet.
 	ErrDecryptionFailed = errors.New("decryption failed")
 )
-
-// ConnectionState contains information about the state of the connection.
-type ConnectionState = qtls.ConnectionState
 
 type headerDecryptor interface {
 	DecryptHeader(sample []byte, firstByte *byte, pnBytes []byte)
@@ -56,13 +53,6 @@ type ShortHeaderSealer interface {
 	KeyPhase() protocol.KeyPhaseBit
 }
 
-// A tlsExtensionHandler sends and received the QUIC TLS extension.
-type tlsExtensionHandler interface {
-	GetExtensions(msgType uint8) []qtls.Extension
-	ReceivedExtensions(msgType uint8, exts []qtls.Extension)
-	TransportParameters() <-chan []byte
-}
-
 type handshakeRunner interface {
 	OnReceivedParams(*wire.TransportParameters)
 	OnHandshakeComplete()
@@ -72,15 +62,15 @@ type handshakeRunner interface {
 
 // CryptoSetup handles the handshake and protecting / unprotecting packets
 type CryptoSetup interface {
-	RunHandshake()
+	StartHandshake() error
 	io.Closer
 	ChangeConnectionID(protocol.ConnectionID)
-	GetSessionTicket() ([]byte, error)
+	// GetSessionTicket() ([]byte, error)
 
 	HandleMessage([]byte, protocol.EncryptionLevel) bool
 	SetLargest1RTTAcked(protocol.PacketNumber) error
 	SetHandshakeConfirmed()
-	ConnectionState() ConnectionState
+	ConnectionState() tls.ConnectionState
 
 	GetInitialOpener() (LongHeaderOpener, error)
 	GetHandshakeOpener() (LongHeaderOpener, error)

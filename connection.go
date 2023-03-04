@@ -52,13 +52,13 @@ type streamManager interface {
 }
 
 type cryptoStreamHandler interface {
-	RunHandshake()
+	StartHandshake() error
 	ChangeConnectionID(protocol.ConnectionID)
 	SetLargest1RTTAcked(protocol.PacketNumber) error
 	SetHandshakeConfirmed()
-	GetSessionTicket() ([]byte, error)
+	// GetSessionTicket() ([]byte, error)
 	io.Closer
-	ConnectionState() handshake.ConnectionState
+	ConnectionState() tls.ConnectionState
 }
 
 type packetInfo struct {
@@ -170,7 +170,6 @@ type connection struct {
 	packer        packer
 	mtuDiscoverer mtuDiscoverer // initialized when the handshake completes
 
-	oneRTTStream        cryptoStream // only set for the server
 	cryptoStreamHandler cryptoStreamHandler
 
 	receivedPackets  chan *receivedPacket
@@ -256,7 +255,6 @@ var newConnection = func(
 		handshakeDestConnID:   destConnID,
 		srcConnIDLen:          srcConnID.Len(),
 		tokenGenerator:        tokenGenerator,
-		oneRTTStream:          newCryptoStream(),
 		perspective:           protocol.PerspectiveServer,
 		handshakeCompleteChan: make(chan struct{}),
 		tracer:                tracer,
@@ -298,6 +296,7 @@ var newConnection = func(
 	)
 	initialStream := newCryptoStream()
 	handshakeStream := newCryptoStream()
+	oneRTTStream := newCryptoStream()
 	params := &wire.TransportParameters{
 		InitialMaxStreamDataBidiLocal:   protocol.ByteCount(s.config.InitialStreamReceiveWindow),
 		InitialMaxStreamDataBidiRemote:  protocol.ByteCount(s.config.InitialStreamReceiveWindow),
@@ -330,9 +329,8 @@ var newConnection = func(
 	cs := handshake.NewCryptoSetupServer(
 		initialStream,
 		handshakeStream,
+		oneRTTStream,
 		clientDestConnID,
-		conn.LocalAddr(),
-		conn.RemoteAddr(),
 		params,
 		&handshakeRunner{
 			onReceivedParams: s.handleTransportParameters,
@@ -353,7 +351,7 @@ var newConnection = func(
 	s.cryptoStreamHandler = cs
 	s.packer = newPacketPacker(srcConnID, s.connIDManager.Get, initialStream, handshakeStream, s.sentPacketHandler, s.retransmissionQueue, s.RemoteAddr(), cs, s.framer, s.receivedPacketHandler, s.datagramQueue, s.perspective)
 	s.unpacker = newPacketUnpacker(cs, s.srcConnIDLen)
-	s.cryptoStreamManager = newCryptoStreamManager(cs, initialStream, handshakeStream, s.oneRTTStream)
+	s.cryptoStreamManager = newCryptoStreamManager(cs, initialStream, handshakeStream, oneRTTStream)
 	return s
 }
 
@@ -417,6 +415,7 @@ var newClientConnection = func(
 	)
 	initialStream := newCryptoStream()
 	handshakeStream := newCryptoStream()
+	oneRTTStream := newCryptoStream()
 	params := &wire.TransportParameters{
 		InitialMaxStreamDataBidiRemote: protocol.ByteCount(s.config.InitialStreamReceiveWindow),
 		InitialMaxStreamDataBidiLocal:  protocol.ByteCount(s.config.InitialStreamReceiveWindow),
@@ -442,9 +441,8 @@ var newClientConnection = func(
 	cs, clientHelloWritten := handshake.NewCryptoSetupClient(
 		initialStream,
 		handshakeStream,
+		oneRTTStream,
 		destConnID,
-		conn.LocalAddr(),
-		conn.RemoteAddr(),
 		params,
 		&handshakeRunner{
 			onReceivedParams:    s.handleTransportParameters,
@@ -461,7 +459,7 @@ var newClientConnection = func(
 	)
 	s.clientHelloWritten = clientHelloWritten
 	s.cryptoStreamHandler = cs
-	s.cryptoStreamManager = newCryptoStreamManager(cs, initialStream, handshakeStream, newCryptoStream())
+	s.cryptoStreamManager = newCryptoStreamManager(cs, initialStream, handshakeStream, oneRTTStream)
 	s.unpacker = newPacketUnpacker(cs, s.srcConnIDLen)
 	s.packer = newPacketPacker(srcConnID, s.connIDManager.Get, initialStream, handshakeStream, s.sentPacketHandler, s.retransmissionQueue, s.RemoteAddr(), cs, s.framer, s.receivedPacketHandler, s.datagramQueue, s.perspective)
 	if len(tlsConf.ServerName) > 0 {
@@ -524,11 +522,9 @@ func (s *connection) run() error {
 
 	s.timer = *newTimer()
 
-	handshaking := make(chan struct{})
-	go func() {
-		defer close(handshaking)
-		s.cryptoStreamHandler.RunHandshake()
-	}()
+	if err := s.cryptoStreamHandler.StartHandshake(); err != nil {
+		return err
+	}
 	go func() {
 		if err := s.sendQueue.Run(); err != nil {
 			s.destroyImpl(err)
@@ -680,7 +676,6 @@ runLoop:
 	}
 
 	s.cryptoStreamHandler.Close()
-	<-handshaking
 	s.handleCloseError(&closeErr)
 	if e := (&errCloseForRecreating{}); !errors.As(closeErr.err, &e) && s.tracer != nil {
 		s.tracer.Close()
@@ -769,16 +764,6 @@ func (s *connection) handleHandshakeComplete() {
 
 	s.handleHandshakeConfirmed()
 
-	ticket, err := s.cryptoStreamHandler.GetSessionTicket()
-	if err != nil {
-		s.closeLocal(err)
-	}
-	if ticket != nil {
-		s.oneRTTStream.Write(ticket)
-		for s.oneRTTStream.HasData() {
-			s.queueControlFrame(s.oneRTTStream.PopCryptoFrame(protocol.MaxPostHandshakeCryptoFrameSize))
-		}
-	}
 	token, err := s.tokenGenerator.NewToken(s.conn.RemoteAddr())
 	if err != nil {
 		s.closeLocal(err)
@@ -1869,6 +1854,9 @@ func (s *connection) sendPacket() (bool, error) {
 		s.framer.QueueControlFrame(&wire.DataBlockedFrame{MaximumData: offset})
 	}
 	s.windowUpdateQueue.QueueAll()
+	if cf := s.cryptoStreamManager.GetPostHandshakeData(protocol.MaxPostHandshakeCryptoFrameSize); cf != nil {
+		s.queueControlFrame(cf)
+	}
 
 	now := time.Now()
 	if !s.handshakeConfirmed {

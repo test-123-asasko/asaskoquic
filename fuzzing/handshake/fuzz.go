@@ -374,42 +374,14 @@ func runHandshake(runConfig [confLen]byte, messageConfig uint8, clientConf *tls.
 	cChunkChan, cInitialStream, cHandshakeStream := initStreams()
 	var client, server handshake.CryptoSetup
 	runner := newRunner(&client, &server)
-	client, _ = handshake.NewCryptoSetupClient(
-		cInitialStream,
-		cHandshakeStream,
-		protocol.ConnectionID{},
-		nil,
-		nil,
-		clientTP,
-		runner,
-		clientConf,
-		enable0RTTClient,
-		utils.NewRTTStats(),
-		nil,
-		utils.DefaultLogger.WithPrefix("client"),
-		protocol.VersionTLS,
-	)
+	client, _ = handshake.NewCryptoSetupClient(cInitialStream, cHandshakeStream, nil, protocol.ConnectionID{}, clientTP, runner, clientConf, enable0RTTClient, utils.NewRTTStats(), nil, utils.DefaultLogger.WithPrefix("client"), protocol.VersionTLS)
 
 	var allow0RTT func() bool
 	if enable0RTTServer {
 		allow0RTT = func() bool { return true }
 	}
 	sChunkChan, sInitialStream, sHandshakeStream := initStreams()
-	server = handshake.NewCryptoSetupServer(
-		sInitialStream,
-		sHandshakeStream,
-		protocol.ConnectionID{},
-		nil,
-		nil,
-		serverTP,
-		runner,
-		serverConf,
-		allow0RTT,
-		utils.NewRTTStats(),
-		nil,
-		utils.DefaultLogger.WithPrefix("server"),
-		protocol.VersionTLS,
-	)
+	server = handshake.NewCryptoSetupServer(sInitialStream, sHandshakeStream, nil, protocol.ConnectionID{}, serverTP, runner, serverConf, allow0RTT, utils.NewRTTStats(), nil, utils.DefaultLogger.WithPrefix("server"), protocol.VersionTLS)
 
 	if len(data) == 0 {
 		return -1

@@ -1,3 +1,6 @@
+// TODO: crypto/tls doesn't have 0-RTT support yet.
+//go:build ignore
+
 package self_test
 
 import (

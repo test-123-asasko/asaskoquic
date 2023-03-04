@@ -86,21 +86,7 @@ var _ = Describe("Crypto Setup TLS", func() {
 		runner.EXPECT().OnError(gomock.Any()).Do(func(e error) { sErrChan <- e })
 		_, sInitialStream, sHandshakeStream := initStreams()
 		var token protocol.StatelessResetToken
-		server := NewCryptoSetupServer(
-			sInitialStream,
-			sHandshakeStream,
-			protocol.ConnectionID{},
-			nil,
-			nil,
-			&wire.TransportParameters{StatelessResetToken: &token},
-			runner,
-			testdata.GetTLSConfig(),
-			nil,
-			&utils.RTTStats{},
-			nil,
-			utils.DefaultLogger.WithPrefix("server"),
-			protocol.VersionTLS,
-		)
+		server := NewCryptoSetupServer(sInitialStream, sHandshakeStream, nil, protocol.ConnectionID{}, &wire.TransportParameters{StatelessResetToken: &token}, runner, testdata.GetTLSConfig(), nil, &utils.RTTStats{}, nil, utils.DefaultLogger.WithPrefix("server"), protocol.VersionTLS)
 
 		done := make(chan struct{})
 		go func() {
@@ -132,21 +118,7 @@ var _ = Describe("Crypto Setup TLS", func() {
 		tlsConf := testdata.GetTLSConfig()
 		tlsConf.InsecureSkipVerify = true
 		tlsConf.NextProtos = []string{""}
-		cl, _ := NewCryptoSetupClient(
-			sInitialStream,
-			sHandshakeStream,
-			protocol.ConnectionID{},
-			nil,
-			nil,
-			&wire.TransportParameters{},
-			runner,
-			tlsConf,
-			false,
-			&utils.RTTStats{},
-			nil,
-			utils.DefaultLogger.WithPrefix("client"),
-			protocol.VersionTLS,
-		)
+		cl, _ := NewCryptoSetupClient(sInitialStream, sHandshakeStream, nil, protocol.ConnectionID{}, &wire.TransportParameters{}, runner, tlsConf, false, &utils.RTTStats{}, nil, utils.DefaultLogger.WithPrefix("client"), protocol.VersionTLS)
 
 		done := make(chan struct{})
 		go func() {
@@ -168,21 +140,7 @@ var _ = Describe("Crypto Setup TLS", func() {
 		runner := NewMockHandshakeRunner(mockCtrl)
 		runner.EXPECT().OnError(gomock.Any()).Do(func(e error) { sErrChan <- e })
 		var token protocol.StatelessResetToken
-		server := NewCryptoSetupServer(
-			sInitialStream,
-			sHandshakeStream,
-			protocol.ConnectionID{},
-			nil,
-			nil,
-			&wire.TransportParameters{StatelessResetToken: &token},
-			runner,
-			testdata.GetTLSConfig(),
-			nil,
-			&utils.RTTStats{},
-			nil,
-			utils.DefaultLogger.WithPrefix("server"),
-			protocol.VersionTLS,
-		)
+		server := NewCryptoSetupServer(sInitialStream, sHandshakeStream, nil, protocol.ConnectionID{}, &wire.TransportParameters{StatelessResetToken: &token}, runner, testdata.GetTLSConfig(), nil, &utils.RTTStats{}, nil, utils.DefaultLogger.WithPrefix("server"), protocol.VersionTLS)
 
 		done := make(chan struct{})
 		go func() {
@@ -209,21 +167,7 @@ var _ = Describe("Crypto Setup TLS", func() {
 		runner := NewMockHandshakeRunner(mockCtrl)
 		runner.EXPECT().OnError(gomock.Any()).Do(func(e error) { sErrChan <- e })
 		var token protocol.StatelessResetToken
-		server := NewCryptoSetupServer(
-			sInitialStream,
-			sHandshakeStream,
-			protocol.ConnectionID{},
-			nil,
-			nil,
-			&wire.TransportParameters{StatelessResetToken: &token},
-			runner,
-			serverConf,
-			nil,
-			&utils.RTTStats{},
-			nil,
-			utils.DefaultLogger.WithPrefix("server"),
-			protocol.VersionTLS,
-		)
+		server := NewCryptoSetupServer(sInitialStream, sHandshakeStream, nil, protocol.ConnectionID{}, &wire.TransportParameters{StatelessResetToken: &token}, runner, serverConf, nil, &utils.RTTStats{}, nil, utils.DefaultLogger.WithPrefix("server"), protocol.VersionTLS)
 
 		done := make(chan struct{})
 		go func() {
@@ -244,21 +188,7 @@ var _ = Describe("Crypto Setup TLS", func() {
 	It("returns Handshake() when it is closed", func() {
 		_, sInitialStream, sHandshakeStream := initStreams()
 		var token protocol.StatelessResetToken
-		server := NewCryptoSetupServer(
-			sInitialStream,
-			sHandshakeStream,
-			protocol.ConnectionID{},
-			nil,
-			nil,
-			&wire.TransportParameters{StatelessResetToken: &token},
-			NewMockHandshakeRunner(mockCtrl),
-			serverConf,
-			nil,
-			&utils.RTTStats{},
-			nil,
-			utils.DefaultLogger.WithPrefix("server"),
-			protocol.VersionTLS,
-		)
+		server := NewCryptoSetupServer(sInitialStream, sHandshakeStream, nil, protocol.ConnectionID{}, &wire.TransportParameters{StatelessResetToken: &token}, NewMockHandshakeRunner(mockCtrl), serverConf, nil, &utils.RTTStats{}, nil, utils.DefaultLogger.WithPrefix("server"), protocol.VersionTLS)
 
 		done := make(chan struct{})
 		go func() {
@@ -362,21 +292,7 @@ var _ = Describe("Crypto Setup TLS", func() {
 			cRunner.EXPECT().OnError(gomock.Any()).Do(func(e error) { cErrChan <- e }).MaxTimes(1)
 			cRunner.EXPECT().OnHandshakeComplete().Do(func() { cHandshakeComplete = true }).MaxTimes(1)
 			cRunner.EXPECT().DropKeys(gomock.Any()).MaxTimes(1)
-			client, clientHelloWrittenChan := NewCryptoSetupClient(
-				cInitialStream,
-				cHandshakeStream,
-				protocol.ConnectionID{},
-				nil,
-				nil,
-				clientTransportParameters,
-				cRunner,
-				clientConf,
-				enable0RTT,
-				clientRTTStats,
-				nil,
-				utils.DefaultLogger.WithPrefix("client"),
-				protocol.VersionTLS,
-			)
+			client, clientHelloWrittenChan := NewCryptoSetupClient(cInitialStream, cHandshakeStream, nil, protocol.ConnectionID{}, clientTransportParameters, cRunner, clientConf, enable0RTT, clientRTTStats, nil, utils.DefaultLogger.WithPrefix("client"), protocol.VersionTLS)
 
 			var allow0RTT func() bool
 			if enable0RTT {
@@ -393,21 +309,7 @@ var _ = Describe("Crypto Setup TLS", func() {
 				var token protocol.StatelessResetToken
 				serverTransportParameters.StatelessResetToken = &token
 			}
-			server := NewCryptoSetupServer(
-				sInitialStream,
-				sHandshakeStream,
-				protocol.ConnectionID{},
-				nil,
-				nil,
-				serverTransportParameters,
-				sRunner,
-				serverConf,
-				allow0RTT,
-				serverRTTStats,
-				nil,
-				utils.DefaultLogger.WithPrefix("server"),
-				protocol.VersionTLS,
-			)
+			server := NewCryptoSetupServer(sInitialStream, sHandshakeStream, nil, protocol.ConnectionID{}, serverTransportParameters, sRunner, serverConf, allow0RTT, serverRTTStats, nil, utils.DefaultLogger.WithPrefix("server"), protocol.VersionTLS)
 
 			handshake(client, cChunkChan, server, sChunkChan)
 			var cErr, sErr error
@@ -463,21 +365,7 @@ var _ = Describe("Crypto Setup TLS", func() {
 		It("signals when it has written the ClientHello", func() {
 			runner := NewMockHandshakeRunner(mockCtrl)
 			cChunkChan, cInitialStream, cHandshakeStream := initStreams()
-			client, chChan := NewCryptoSetupClient(
-				cInitialStream,
-				cHandshakeStream,
-				protocol.ConnectionID{},
-				nil,
-				nil,
-				&wire.TransportParameters{},
-				runner,
-				&tls.Config{InsecureSkipVerify: true},
-				false,
-				&utils.RTTStats{},
-				nil,
-				utils.DefaultLogger.WithPrefix("client"),
-				protocol.VersionTLS,
-			)
+			client, chChan := NewCryptoSetupClient(cInitialStream, cHandshakeStream, nil, protocol.ConnectionID{}, &wire.TransportParameters{}, runner, &tls.Config{InsecureSkipVerify: true}, false, &utils.RTTStats{}, nil, utils.DefaultLogger.WithPrefix("client"), protocol.VersionTLS)
 
 			done := make(chan struct{})
 			go func() {
@@ -506,21 +394,7 @@ var _ = Describe("Crypto Setup TLS", func() {
 			cRunner := NewMockHandshakeRunner(mockCtrl)
 			cRunner.EXPECT().OnReceivedParams(gomock.Any()).Do(func(tp *wire.TransportParameters) { sTransportParametersRcvd = tp })
 			cRunner.EXPECT().OnHandshakeComplete()
-			client, _ := NewCryptoSetupClient(
-				cInitialStream,
-				cHandshakeStream,
-				protocol.ConnectionID{},
-				nil,
-				nil,
-				cTransportParameters,
-				cRunner,
-				clientConf,
-				false,
-				&utils.RTTStats{},
-				nil,
-				utils.DefaultLogger.WithPrefix("client"),
-				protocol.VersionTLS,
-			)
+			client, _ := NewCryptoSetupClient(cInitialStream, cHandshakeStream, nil, protocol.ConnectionID{}, cTransportParameters, cRunner, clientConf, false, &utils.RTTStats{}, nil, utils.DefaultLogger.WithPrefix("client"), protocol.VersionTLS)
 
 			sChunkChan, sInitialStream, sHandshakeStream := initStreams()
 			var token protocol.StatelessResetToken
@@ -532,21 +406,7 @@ var _ = Describe("Crypto Setup TLS", func() {
 				StatelessResetToken:     &token,
 				ActiveConnectionIDLimit: 2,
 			}
-			server := NewCryptoSetupServer(
-				sInitialStream,
-				sHandshakeStream,
-				protocol.ConnectionID{},
-				nil,
-				nil,
-				sTransportParameters,
-				sRunner,
-				serverConf,
-				nil,
-				&utils.RTTStats{},
-				nil,
-				utils.DefaultLogger.WithPrefix("server"),
-				protocol.VersionTLS,
-			)
+			server := NewCryptoSetupServer(sInitialStream, sHandshakeStream, nil, protocol.ConnectionID{}, sTransportParameters, sRunner, serverConf, nil, &utils.RTTStats{}, nil, utils.DefaultLogger.WithPrefix("server"), protocol.VersionTLS)
 
 			done := make(chan struct{})
 			go func() {
@@ -566,42 +426,14 @@ var _ = Describe("Crypto Setup TLS", func() {
 				cRunner := NewMockHandshakeRunner(mockCtrl)
 				cRunner.EXPECT().OnReceivedParams(gomock.Any())
 				cRunner.EXPECT().OnHandshakeComplete()
-				client, _ := NewCryptoSetupClient(
-					cInitialStream,
-					cHandshakeStream,
-					protocol.ConnectionID{},
-					nil,
-					nil,
-					&wire.TransportParameters{ActiveConnectionIDLimit: 2},
-					cRunner,
-					clientConf,
-					false,
-					&utils.RTTStats{},
-					nil,
-					utils.DefaultLogger.WithPrefix("client"),
-					protocol.VersionTLS,
-				)
+				client, _ := NewCryptoSetupClient(cInitialStream, cHandshakeStream, nil, protocol.ConnectionID{}, &wire.TransportParameters{ActiveConnectionIDLimit: 2}, cRunner, clientConf, false, &utils.RTTStats{}, nil, utils.DefaultLogger.WithPrefix("client"), protocol.VersionTLS)
 
 				sChunkChan, sInitialStream, sHandshakeStream := initStreams()
 				sRunner := NewMockHandshakeRunner(mockCtrl)
 				sRunner.EXPECT().OnReceivedParams(gomock.Any())
 				sRunner.EXPECT().OnHandshakeComplete()
 				var token protocol.StatelessResetToken
-				server := NewCryptoSetupServer(
-					sInitialStream,
-					sHandshakeStream,
-					protocol.ConnectionID{},
-					nil,
-					nil,
-					&wire.TransportParameters{ActiveConnectionIDLimit: 2, StatelessResetToken: &token},
-					sRunner,
-					serverConf,
-					nil,
-					&utils.RTTStats{},
-					nil,
-					utils.DefaultLogger.WithPrefix("server"),
-					protocol.VersionTLS,
-				)
+				server := NewCryptoSetupServer(sInitialStream, sHandshakeStream, nil, protocol.ConnectionID{}, &wire.TransportParameters{ActiveConnectionIDLimit: 2, StatelessResetToken: &token}, sRunner, serverConf, nil, &utils.RTTStats{}, nil, utils.DefaultLogger.WithPrefix("server"), protocol.VersionTLS)
 
 				done := make(chan struct{})
 				go func() {
@@ -625,42 +457,14 @@ var _ = Describe("Crypto Setup TLS", func() {
 				cRunner := NewMockHandshakeRunner(mockCtrl)
 				cRunner.EXPECT().OnReceivedParams(gomock.Any())
 				cRunner.EXPECT().OnHandshakeComplete()
-				client, _ := NewCryptoSetupClient(
-					cInitialStream,
-					cHandshakeStream,
-					protocol.ConnectionID{},
-					nil,
-					nil,
-					&wire.TransportParameters{ActiveConnectionIDLimit: 2},
-					cRunner,
-					clientConf,
-					false,
-					&utils.RTTStats{},
-					nil,
-					utils.DefaultLogger.WithPrefix("client"),
-					protocol.VersionTLS,
-				)
+				client, _ := NewCryptoSetupClient(cInitialStream, cHandshakeStream, nil, protocol.ConnectionID{}, &wire.TransportParameters{ActiveConnectionIDLimit: 2}, cRunner, clientConf, false, &utils.RTTStats{}, nil, utils.DefaultLogger.WithPrefix("client"), protocol.VersionTLS)
 
 				sChunkChan, sInitialStream, sHandshakeStream := initStreams()
 				sRunner := NewMockHandshakeRunner(mockCtrl)
 				sRunner.EXPECT().OnReceivedParams(gomock.Any())
 				sRunner.EXPECT().OnHandshakeComplete()
 				var token protocol.StatelessResetToken
-				server := NewCryptoSetupServer(
-					sInitialStream,
-					sHandshakeStream,
-					protocol.ConnectionID{},
-					nil,
-					nil,
-					&wire.TransportParameters{ActiveConnectionIDLimit: 2, StatelessResetToken: &token},
-					sRunner,
-					serverConf,
-					nil,
-					&utils.RTTStats{},
-					nil,
-					utils.DefaultLogger.WithPrefix("server"),
-					protocol.VersionTLS,
-				)
+				server := NewCryptoSetupServer(sInitialStream, sHandshakeStream, nil, protocol.ConnectionID{}, &wire.TransportParameters{ActiveConnectionIDLimit: 2, StatelessResetToken: &token}, sRunner, serverConf, nil, &utils.RTTStats{}, nil, utils.DefaultLogger.WithPrefix("server"), protocol.VersionTLS)
 
 				done := make(chan struct{})
 				go func() {

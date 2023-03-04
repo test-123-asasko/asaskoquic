@@ -59,3 +59,10 @@ func (m *cryptoStreamManager) HandleCryptoFrame(frame *wire.CryptoFrame, encLeve
 		}
 	}
 }
+
+func (m *cryptoStreamManager) GetPostHandshakeData(maxSize protocol.ByteCount) *wire.CryptoFrame {
+	if !m.oneRTTStream.HasData() {
+		return nil
+	}
+	return m.oneRTTStream.PopCryptoFrame(maxSize)
+}

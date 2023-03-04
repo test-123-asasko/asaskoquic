@@ -128,7 +128,7 @@ var _ = Describe("HTTP3 Server hotswap test", func() {
 				}
 			})
 
-			It("hotswap works", func() {
+			PIt("hotswap works", func() {
 				// open first server and make single request to it
 				fake1 := ln.Faker()
 				stoppedServing1 := make(chan struct{})

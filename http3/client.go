@@ -14,7 +14,6 @@ import (
 
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/internal/protocol"
-	"github.com/quic-go/quic-go/internal/qtls"
 	"github.com/quic-go/quic-go/internal/utils"
 	"github.com/quic-go/quic-go/quicvarint"
 
@@ -393,7 +392,7 @@ func (c *client) doRequest(req *http.Request, conn quic.EarlyConnection, str qui
 		return nil, newConnError(errorGeneralProtocolError, err)
 	}
 
-	connState := qtls.ToTLSConnectionState(conn.ConnectionState().TLS)
+	connState := conn.ConnectionState().TLS
 	res := &http.Response{
 		Proto:      "HTTP/3.0",
 		ProtoMajor: 3,
