@@ -180,7 +180,7 @@ func newCryptoSetup(
 		WriteCryptoData:        cs.WriteRecord,
 		SetTransportParameters: cs.handleTransportParameters,
 		GetTransportParameters: func() []byte { return tp.Marshal(perspective) },
-		HandshakeDone:          cs.handshakeDone,
+		HandshakeComplete:      cs.handshakeComplete,
 	}
 	switch perspective {
 	case protocol.PerspectiveServer:
@@ -342,36 +342,6 @@ func (h *cryptoSetup) rejected0RTT() {
 	}
 }
 
-// func (h *cryptoSetup) handlePostHandshakeMessage() {
-// 	// make sure the handshake has already completed
-// 	<-h.handshakeDone
-//
-// 	done := make(chan struct{})
-// 	defer close(done)
-//
-// 	// h.alertChan is an unbuffered channel.
-// 	// If an error occurs during conn.HandlePostHandshakeMessage,
-// 	// it will be sent on this channel.
-// 	// Read it from a go-routine so that HandlePostHandshakeMessage doesn't deadlock.
-// 	alertChan := make(chan uint8, 1)
-// 	go func() {
-// 		<-h.isReadingHandshakeMessage
-// 		select {
-// 		case alert := <-h.alertChan:
-// 			alertChan <- alert
-// 		case <-done:
-// 		}
-// 	}()
-//
-// 	if err := h.conn.HandlePostHandshakeMessage(); err != nil {
-// 		select {
-// 		case <-h.closeChan:
-// 		case alert := <-alertChan:
-// 			h.onError(alert, err.Error())
-// 		}
-// 	}
-// }
-
 func (h *cryptoSetup) SetReadKey(el tls.EncryptionLevel, suiteID uint16, trafficSecret []byte) {
 	encLevel := protocol.FromTLSEncryptionLevel(el)
 	suite := getCipherSuite(suiteID)
@@ -503,7 +473,7 @@ func (h *cryptoSetup) dropInitialKeys() {
 	h.logger.Debugf("Dropping Initial keys.")
 }
 
-func (h *cryptoSetup) handshakeDone() {
+func (h *cryptoSetup) handshakeComplete() {
 	h.handshakeCompleteTime = time.Now()
 	h.runner.OnHandshakeComplete()
 }
@@ -609,12 +579,6 @@ func (h *cryptoSetup) GetHandshakeOpener() (LongHeaderOpener, error) {
 func (h *cryptoSetup) Get1RTTOpener() (ShortHeaderOpener, error) {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
-
-	// TODO: crypto/tls currently gives us the 1-RTT read key prematurely.
-	// Hold it back until the handshake is completed.
-	if h.handshakeCompleteTime.IsZero() {
-		return nil, ErrKeysNotYetAvailable
-	}
 
 	if h.zeroRTTOpener != nil && time.Since(h.handshakeCompleteTime) > 3*h.rttStats.PTO(true) {
 		h.zeroRTTOpener = nil
