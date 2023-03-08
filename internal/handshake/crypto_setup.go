@@ -2,6 +2,7 @@ package handshake
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -207,7 +208,7 @@ func (h *cryptoSetup) SetLargest1RTTAcked(pn protocol.PacketNumber) error {
 }
 
 func (h *cryptoSetup) StartHandshake() error {
-	err := h.conn.Start()
+	err := h.conn.Start(context.WithValue(context.Background(), QUICVersionContextKey, h.version))
 	if h.perspective == protocol.PerspectiveClient {
 		if false && h.zeroRTTSealer != nil && h.zeroRTTParameters != nil {
 			h.logger.Debugf("Doing 0-RTT.")

@@ -34,8 +34,7 @@ var _ = Describe("HTTP tests", func() {
 		port           string
 	)
 
-	// TODO: crypto/tls currently doesn't allow us to get the QUIC version in GetClientHelloInfo
-	versions := []protocol.VersionNumber{protocol.Version1, protocol.Version2}
+	versions := protocol.SupportedVersions
 
 	BeforeEach(func() {
 		mux = http.NewServeMux()
