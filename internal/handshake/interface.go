@@ -57,6 +57,7 @@ type handshakeRunner interface {
 	OnReceivedParams(*wire.TransportParameters)
 	OnHandshakeComplete()
 	OnError(error)
+	OnReceivedReadKeys(protocol.EncryptionLevel)
 	DropKeys(protocol.EncryptionLevel)
 }
 
@@ -67,7 +68,7 @@ type CryptoSetup interface {
 	ChangeConnectionID(protocol.ConnectionID)
 	// GetSessionTicket() ([]byte, error)
 
-	HandleMessage([]byte, protocol.EncryptionLevel) bool
+	HandleMessage([]byte, protocol.EncryptionLevel)
 	SetLargest1RTTAcked(protocol.PacketNumber) error
 	SetHandshakeConfirmed()
 	ConnectionState() tls.ConnectionState

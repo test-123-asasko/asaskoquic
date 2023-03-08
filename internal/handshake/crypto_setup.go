@@ -237,12 +237,11 @@ func (h *cryptoSetup) Close() error { return h.conn.Close() }
 // HandleMessage handles a TLS handshake message.
 // It is called by the crypto streams when a new message is available.
 // It returns if it is done with messages on the same encryption level.
-func (h *cryptoSetup) HandleMessage(data []byte, encLevel protocol.EncryptionLevel) bool /* stream finished */ {
+func (h *cryptoSetup) HandleMessage(data []byte, encLevel protocol.EncryptionLevel) {
 	if err := h.conn.HandleCryptoData(encLevel.ToTLSEncryptionLevel(), data); err != nil {
 		fmt.Printf("%s: %#v\n", h.perspective, err)
 		h.onError(0, err.Error())
 	}
-	return false
 }
 
 func (h *cryptoSetup) handleTransportParameters(data []byte) error {
@@ -355,14 +354,9 @@ func (h *cryptoSetup) SetReadKey(el tls.EncryptionLevel, suiteID uint16, traffic
 			createAEAD(suite, trafficSecret, h.version),
 			newHeaderProtector(suite, trafficSecret, true, h.version),
 		)
-		h.mutex.Unlock()
 		if h.logger.Debug() {
 			h.logger.Debugf("Installed 0-RTT Read keys (using %s)", tls.CipherSuiteName(suite.ID))
 		}
-		if h.tracer != nil {
-			h.tracer.UpdatedKeyFromTLS(protocol.Encryption0RTT, h.perspective.Opposite())
-		}
-		return
 	case protocol.EncryptionHandshake:
 		h.handshakeOpener = newHandshakeOpener(
 			createAEAD(suite, trafficSecret, h.version),
@@ -383,6 +377,7 @@ func (h *cryptoSetup) SetReadKey(el tls.EncryptionLevel, suiteID uint16, traffic
 		panic("unexpected read encryption level")
 	}
 	h.mutex.Unlock()
+	h.runner.OnReceivedReadKeys(encLevel)
 	if h.tracer != nil {
 		h.tracer.UpdatedKeyFromTLS(encLevel, h.perspective.Opposite())
 	}

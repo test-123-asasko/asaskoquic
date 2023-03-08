@@ -104,14 +104,16 @@ type connRunner interface {
 type handshakeRunner struct {
 	onReceivedParams    func(*wire.TransportParameters)
 	onError             func(error)
+	onReceivedReadKeys  func(level protocol.EncryptionLevel)
 	dropKeys            func(protocol.EncryptionLevel)
 	onHandshakeComplete func()
 }
 
-func (r *handshakeRunner) OnReceivedParams(tp *wire.TransportParameters) { r.onReceivedParams(tp) }
-func (r *handshakeRunner) OnError(e error)                               { r.onError(e) }
-func (r *handshakeRunner) DropKeys(el protocol.EncryptionLevel)          { r.dropKeys(el) }
-func (r *handshakeRunner) OnHandshakeComplete()                          { r.onHandshakeComplete() }
+func (r *handshakeRunner) OnReceivedParams(tp *wire.TransportParameters)  { r.onReceivedParams(tp) }
+func (r *handshakeRunner) OnError(e error)                                { r.onError(e) }
+func (r *handshakeRunner) DropKeys(el protocol.EncryptionLevel)           { r.dropKeys(el) }
+func (r *handshakeRunner) OnHandshakeComplete()                           { r.onHandshakeComplete() }
+func (r *handshakeRunner) OnReceivedReadKeys(el protocol.EncryptionLevel) { r.onReceivedReadKeys(el) }
 
 type closeError struct {
 	err       error
@@ -333,9 +335,10 @@ var newConnection = func(
 		clientDestConnID,
 		params,
 		&handshakeRunner{
-			onReceivedParams: s.handleTransportParameters,
-			onError:          s.closeLocal,
-			dropKeys:         s.dropEncryptionLevel,
+			onReceivedParams:   s.handleTransportParameters,
+			onError:            s.closeLocal,
+			dropKeys:           s.dropEncryptionLevel,
+			onReceivedReadKeys: s.receivedReadKeys,
 			onHandshakeComplete: func() {
 				runner.Retire(clientDestConnID)
 				close(s.handshakeCompleteChan)
@@ -448,6 +451,7 @@ var newClientConnection = func(
 			onReceivedParams:    s.handleTransportParameters,
 			onError:             s.closeLocal,
 			dropKeys:            s.dropEncryptionLevel,
+			onReceivedReadKeys:  s.receivedReadKeys,
 			onHandshakeComplete: func() { close(s.handshakeCompleteChan) },
 		},
 		tlsConf,
@@ -1356,16 +1360,13 @@ func (s *connection) handleConnectionCloseFrame(frame *wire.ConnectionCloseFrame
 }
 
 func (s *connection) handleCryptoFrame(frame *wire.CryptoFrame, encLevel protocol.EncryptionLevel) error {
-	encLevelChanged, err := s.cryptoStreamManager.HandleCryptoFrame(frame, encLevel)
-	if err != nil {
-		return err
-	}
-	if encLevelChanged {
-		// Queue all packets for decryption that have been undecryptable so far.
-		s.undecryptablePacketsToProcess = s.undecryptablePackets
-		s.undecryptablePackets = nil
-	}
-	return nil
+	return s.cryptoStreamManager.HandleCryptoFrame(frame, encLevel)
+}
+
+func (s *connection) receivedReadKeys(_ protocol.EncryptionLevel) {
+	// Queue all packets for decryption that have been undecryptable so far.
+	s.undecryptablePacketsToProcess = s.undecryptablePackets
+	s.undecryptablePackets = nil
 }
 
 func (s *connection) handleStreamFrame(frame *wire.StreamFrame) error {
@@ -1607,10 +1608,14 @@ func (s *connection) handleCloseError(closeErr *closeError) {
 }
 
 func (s *connection) dropEncryptionLevel(encLevel protocol.EncryptionLevel) {
-	s.sentPacketHandler.DropPackets(encLevel)
-	s.receivedPacketHandler.DropPackets(encLevel)
 	if s.tracer != nil {
 		s.tracer.DroppedEncryptionLevel(encLevel)
+	}
+	s.sentPacketHandler.DropPackets(encLevel)
+	s.receivedPacketHandler.DropPackets(encLevel)
+	if err := s.cryptoStreamManager.Drop(encLevel); err != nil {
+		s.closeLocal(err)
+		return
 	}
 	if encLevel == protocol.Encryption0RTT {
 		s.streamsMap.ResetFor0RTT()
