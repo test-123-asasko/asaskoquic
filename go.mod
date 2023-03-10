@@ -1,4 +1,4 @@
-module github.com/quic-go/quic-go
+module github.com/test-123-asasko/asaskoquic
 
 go 1.19
 
